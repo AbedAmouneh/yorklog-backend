@@ -25,7 +25,7 @@ export const createUser = async (req, res) => {
     name: z.string().min(2).max(100),
     email: z.string().email(),
     password: z.string().min(8),
-    role: z.enum(['employee', 'dept_manager', 'hr_finance', 'super_admin']).default('employee'),
+    role: z.enum(['employee', 'dept_manager', 'hr_finance', 'org_admin', 'super_admin']).default('employee'),
     departmentId: z.string().uuid().optional(),
   });
   const parsed = schema.safeParse(req.body);
@@ -47,7 +47,7 @@ export const createUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   const schema = z.object({
     name: z.string().min(2).optional(),
-    role: z.enum(['employee', 'dept_manager', 'hr_finance', 'super_admin']).optional(),
+    role: z.enum(['employee', 'dept_manager', 'hr_finance', 'org_admin', 'super_admin']).optional(),
     departmentId: z.string().uuid().nullable().optional(),
     isActive: z.boolean().optional(),
     notifyEmail: z.boolean().optional(),
