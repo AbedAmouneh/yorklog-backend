@@ -54,7 +54,7 @@ export const setDepartmentManager = async (req, res) => {
       return res.status(400).json({ error: 'User not found or inactive.' });
     }
     if (manager.role !== 'dept_manager') {
-      return res.status(400).json({ error: 'Selected user must have the Department Manager role.' });
+      return res.status(400).json({ error: 'Selected user must have the Team Leader role.' });
     }
   }
 
