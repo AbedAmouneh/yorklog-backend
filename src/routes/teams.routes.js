@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  createTeam,
   getTeams,
   getManagers,
   setDepartmentManager,
@@ -17,6 +18,7 @@ router.use(authenticate);
 // (dept_managers do NOT get team assignment — they manage their own team's timesheets)
 router.use(requireAnyOf('hr_finance', 'org_admin', 'super_admin'));
 
+router.post('/', asyncHandler(createTeam));
 router.get('/', asyncHandler(getTeams));
 router.get('/managers', asyncHandler(getManagers));
 router.patch('/:deptId/manager', asyncHandler(setDepartmentManager));

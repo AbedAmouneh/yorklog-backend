@@ -1,4 +1,58 @@
+import { z } from 'zod';
 import prisma from '../lib/prisma.js';
+
+/**
+ * POST /teams
+ * Creates a new team (department) with an optional manager and optional initial members.
+ */
+export const createTeam = async (req, res) => {
+  const schema = z.object({
+    name: z.string().min(2).max(100),
+    maxDailyHours: z.coerce.number().min(1).max(24).optional(),
+    headUserId: z.string().uuid().nullable().optional(),
+    memberIds: z.array(z.string().uuid()).optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    const messages = Object.values(parsed.error.flatten().fieldErrors).flat().join(', ');
+    return res.status(400).json({ error: messages || 'Invalid input.' });
+  }
+
+  const { name, maxDailyHours, headUserId, memberIds } = parsed.data;
+
+  const existing = await prisma.department.findUnique({ where: { name } });
+  if (existing) return res.status(409).json({ error: 'A team with that name already exists.' });
+
+  if (headUserId) {
+    const manager = await prisma.user.findUnique({ where: { id: headUserId } });
+    if (!manager || manager.role !== 'dept_manager') {
+      return res.status(400).json({ error: 'Selected Team Leader must have the Team Leader role.' });
+    }
+  }
+
+  const dept = await prisma.department.create({
+    data: {
+      name,
+      maxDailyHours: maxDailyHours ?? 8,
+      headUserId: headUserId ?? null,
+    },
+    include: {
+      headUser: { select: { id: true, name: true } },
+      _count: { select: { users: true } },
+    },
+  });
+
+  // Bulk-assign selected members to the new team
+  if (memberIds && memberIds.length > 0) {
+    await prisma.user.updateMany({
+      where: { id: { in: memberIds }, isActive: true },
+      data: { departmentId: dept.id },
+    });
+  }
+
+  res.status(201).json({ department: dept });
+};
 
 /**
  * GET /teams
