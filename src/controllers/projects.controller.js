@@ -69,6 +69,22 @@ export const assignEmployees = async (req, res) => {
   const project = await prisma.project.findUnique({ where: { id: req.params.id } });
   if (!project) return res.status(404).json({ error: 'Project not found.' });
 
+  // Team leaders can only assign employees from their own department
+  if (req.user.role === 'dept_manager') {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ error: 'You are not assigned to a department.' });
+    }
+    const teamMembers = await prisma.user.findMany({
+      where: { departmentId: req.user.departmentId, isActive: true },
+      select: { id: true },
+    });
+    const teamMemberIds = new Set(teamMembers.map((u) => u.id));
+    const outsiders = userIds.filter((id) => !teamMemberIds.has(id));
+    if (outsiders.length > 0) {
+      return res.status(403).json({ error: 'You can only assign employees from your own team.' });
+    }
+  }
+
   // Upsert assignments
   await Promise.all(
     userIds.map(userId =>

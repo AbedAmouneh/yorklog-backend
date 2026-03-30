@@ -5,8 +5,15 @@ import prisma from '../lib/prisma.js';
 export const getAllUsers = async (req, res) => {
   const { departmentId, role, isActive = 'true' } = req.query;
   const where = { isActive: isActive === 'true' };
-  if (departmentId) where.departmentId = departmentId;
   if (role) where.role = role;
+
+  // Team leaders (dept_manager) can only see members of their own department
+  if (req.user.role === 'dept_manager') {
+    if (!req.user.departmentId) return res.json({ users: [] });
+    where.departmentId = req.user.departmentId;
+  } else if (departmentId) {
+    where.departmentId = departmentId;
+  }
 
   const users = await prisma.user.findMany({
     where,
