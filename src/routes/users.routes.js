@@ -6,15 +6,15 @@ import {
   deactivateUser,
 } from '../controllers/users.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
-import { requireAdmin, requireManager } from '../middleware/role.middleware.js';
+import { requireAdmin, requireManager, requireAnyOf } from '../middleware/role.middleware.js';
 import asyncHandler from '../lib/asyncHandler.js';
 
 const router = Router();
 
 router.use(authenticate);
 
-// Managers can read users (needed for project assignment)
-router.get('/', requireManager, asyncHandler(getAllUsers));
+// Managers + HR can read users (needed for project assignment & team management)
+router.get('/', requireAnyOf('dept_manager', 'hr_finance', 'org_admin', 'super_admin'), asyncHandler(getAllUsers));
 
 // User create/update/deactivate remains super_admin only
 router.post('/', requireAdmin, asyncHandler(createUser));
