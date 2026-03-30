@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { generateExcel } from '../services/export.service.js';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 const buildWhere = (req) => {
   const { startDate, endDate, userId, projectId, departmentId } = req.query;
@@ -31,10 +29,26 @@ export const getSummary = async (req, res) => {
     _sum: { totalMinutes: true },
     _count: { id: true },
   });
+
+  const totalMinutes = result._sum.totalMinutes || 0;
+  const totalEntries = result._count.id || 0;
+
+  // Count distinct employees
+  const distinctUsers = await prisma.timesheetEntry.groupBy({
+    by: ['userId'],
+    where,
+  });
+  const activeEmployees = distinctUsers.length;
+  const avgMinutesPerEmployee = activeEmployees > 0 ? Math.round(totalMinutes / activeEmployees) : 0;
+
   res.json({
-    totalMinutes: result._sum.totalMinutes || 0,
-    totalHours: ((result._sum.totalMinutes || 0) / 60).toFixed(2),
-    entryCount: result._count.id,
+    summary: {
+      totalMinutes,
+      totalHours: (totalMinutes / 60).toFixed(2),
+      totalEntries,
+      activeEmployees,
+      avgMinutesPerEmployee,
+    },
   });
 };
 
@@ -44,6 +58,7 @@ export const getByEmployee = async (req, res) => {
     by: ['userId'],
     where,
     _sum: { totalMinutes: true },
+    _count: { id: true },
     orderBy: { _sum: { totalMinutes: 'desc' } },
   });
 
@@ -54,12 +69,15 @@ export const getByEmployee = async (req, res) => {
   });
   const userMap = Object.fromEntries(users.map(u => [u.id, u]));
 
-  const data = rows.map(r => ({
-    user: userMap[r.userId],
+  const employees = rows.map(r => ({
+    userId: r.userId,
+    name: userMap[r.userId]?.name,
+    department: userMap[r.userId]?.department?.name,
     totalMinutes: r._sum.totalMinutes,
     totalHours: (r._sum.totalMinutes / 60).toFixed(2),
+    entryCount: r._count.id,
   }));
-  res.json({ data });
+  res.json({ employees });
 };
 
 export const getByProject = async (req, res) => {
@@ -68,22 +86,36 @@ export const getByProject = async (req, res) => {
     by: ['projectId'],
     where,
     _sum: { totalMinutes: true },
+    _count: { id: true },
     orderBy: { _sum: { totalMinutes: 'desc' } },
   });
 
   const projectIds = rows.map(r => r.projectId);
-  const projects = await prisma.project.findMany({
+  const projectList = await prisma.project.findMany({
     where: { id: { in: projectIds } },
     select: { id: true, name: true },
   });
-  const projMap = Object.fromEntries(projects.map(p => [p.id, p]));
+  const projMap = Object.fromEntries(projectList.map(p => [p.id, p]));
 
-  const data = rows.map(r => ({
-    project: projMap[r.projectId],
+  // Count distinct employees per project
+  const empCountRows = await prisma.timesheetEntry.groupBy({
+    by: ['projectId', 'userId'],
+    where,
+  });
+  const empCountByProject = {};
+  for (const r of empCountRows) {
+    empCountByProject[r.projectId] = (empCountByProject[r.projectId] || 0) + 1;
+  }
+
+  const projects = rows.map(r => ({
+    projectId: r.projectId,
+    name: projMap[r.projectId]?.name,
     totalMinutes: r._sum.totalMinutes,
     totalHours: (r._sum.totalMinutes / 60).toFixed(2),
+    entryCount: r._count.id,
+    employeeCount: empCountByProject[r.projectId] || 0,
   }));
-  res.json({ data });
+  res.json({ projects });
 };
 
 export const whoLoggedToday = async (req, res) => {

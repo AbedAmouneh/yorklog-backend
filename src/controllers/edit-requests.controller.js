@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { createNotification } from './notifications.controller.js';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 const editSchema = z.object({
   hours: z.number().int().min(0).max(23).optional(),
@@ -134,7 +132,7 @@ export const approveEditRequest = async (req, res) => {
   await prisma.$transaction([
     prisma.timesheetEntry.update({
       where: { id: request.entryId },
-      data: { ...request.newData, status: 'active' },
+      data: { ...request.newData, status: 'approved' },
     }),
     prisma.editRequest.update({
       where: { id: request.id },
@@ -166,7 +164,7 @@ export const rejectEditRequest = async (req, res) => {
   await prisma.$transaction([
     prisma.timesheetEntry.update({
       where: { id: request.entryId },
-      data: { status: 'active' },
+      data: { status: 'submitted' },
     }),
     prisma.editRequest.update({
       where: { id: request.id },

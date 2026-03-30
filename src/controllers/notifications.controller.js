@@ -1,11 +1,10 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 /** Internal helper — call from other controllers */
-export const createNotification = async (userId, { type, title, body, relatedId }) => {
+export const createNotification = async (userId, { type, title, body, message, relatedId }) => {
+  const msg = message || [title, body].filter(Boolean).join(' — ') || '';
   return prisma.notification.create({
-    data: { userId, type, title, body, relatedId: relatedId || null },
+    data: { userId, type, message: msg, relatedId: relatedId || null },
   });
 };
 

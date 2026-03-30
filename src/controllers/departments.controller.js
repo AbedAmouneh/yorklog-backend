@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 export const getAllDepartments = async (req, res) => {
   const departments = await prisma.department.findMany({

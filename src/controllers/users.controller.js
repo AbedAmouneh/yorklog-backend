@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 export const getAllUsers = async (req, res) => {
   const { departmentId, role, isActive = 'true' } = req.query;

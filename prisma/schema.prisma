@@ -2,9 +2,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Seed configuration
-// Run: npm run db:seed
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -25,8 +22,10 @@ enum ProjectStatus {
 }
 
 enum EntryStatus {
-  active
+  submitted
+  approved
   pending_edit
+  rejected
 }
 
 enum EditRequestStatus {
@@ -46,16 +45,14 @@ enum NotificationType {
 // ── Models ────────────────────────────────────────────────────────────────────
 
 model Department {
-  id              String   @id @default(uuid())
-  name            String   @unique
-  maxHoursPerDay  Decimal  @default(8.0) @map("max_hours_per_day") @db.Decimal(4, 2)
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  name           String   @unique
+  maxDailyHours  Int      @default(8) @map("max_daily_hours")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relations
-  headUserId      String?  @map("head_user_id")
-  headUser        User?    @relation("DepartmentHead", fields: [headUserId], references: [id])
-  users           User[]   @relation("DepartmentMembers")
+  users User[]
 
   @@map("departments")
 }
@@ -72,34 +69,33 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
-  departmentId          String?              @map("department_id")
-  department            Department?          @relation("DepartmentMembers", fields: [departmentId], references: [id])
-  headOfDepartment      Department?          @relation("DepartmentHead")
-  timesheetEntries      TimesheetEntry[]
-  projectAssignments    ProjectAssignment[]  @relation("AssignedUser")
-  assignedProjects      ProjectAssignment[]  @relation("AssignedBy")
-  editRequestsMade      EditRequest[]        @relation("RequestedBy")
-  editRequestsReviewed  EditRequest[]        @relation("ReviewedBy")
-  notifications         Notification[]
-  createdProjects       Project[]
+  departmentId         String?             @map("department_id")
+  department           Department?         @relation(fields: [departmentId], references: [id])
+  timesheetEntries     TimesheetEntry[]
+  projectAssignments   ProjectAssignment[]
+  editRequestsMade     EditRequest[]       @relation("RequestedBy")
+  editRequestsReviewed EditRequest[]       @relation("ReviewedBy")
+  notifications        Notification[]
+  createdProjects      Project[]
 
   @@map("users")
 }
 
 model Project {
-  id          String        @id @default(uuid())
-  name        String
-  description String?
-  status      ProjectStatus @default(active)
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id            String        @id @default(uuid())
+  name          String        @unique
+  description   String?
+  status        ProjectStatus @default(active)
+  maxDailyHours Int?          @map("max_daily_hours")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
 
   // Relations
-  createdById  String              @map("created_by_id")
-  createdBy    User                @relation(fields: [createdById], references: [id])
-  taskTypes    TaskType[]
-  assignments  ProjectAssignment[]
-  entries      TimesheetEntry[]
+  createdById String              @map("created_by_id")
+  createdBy   User                @relation(fields: [createdById], references: [id])
+  taskTypes   TaskType[]
+  assignments ProjectAssignment[]
+  entries     TimesheetEntry[]
 
   @@map("projects")
 }
@@ -111,8 +107,8 @@ model TaskType {
   createdAt     DateTime @default(now()) @map("created_at")
 
   // Relations
-  projectId String          @map("project_id")
-  project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String         @map("project_id")
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   entries   TimesheetEntry[]
 
   @@unique([projectId, name])
@@ -124,34 +120,32 @@ model ProjectAssignment {
   assignedAt DateTime @default(now()) @map("assigned_at")
 
   // Relations
-  projectId    String  @map("project_id")
-  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  userId       String  @map("user_id")
-  user         User    @relation("AssignedUser", fields: [userId], references: [id], onDelete: Cascade)
-  assignedById String  @map("assigned_by_id")
-  assignedBy   User    @relation("AssignedBy", fields: [assignedById], references: [id])
+  projectId String  @map("project_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String  @map("user_id")
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
   @@map("project_assignments")
 }
 
 model TimesheetEntry {
-  id              String      @id @default(uuid())
-  date            DateTime    @db.Date
-  totalMinutes    Int         @map("total_minutes") // hours*60 + minutes
-  taskDescription String?     @map("task_description") @db.VarChar(255)
-  description     String?     @db.VarChar(300)
-  status          EntryStatus @default(active)
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  id           String      @id @default(uuid())
+  date         DateTime    @db.Date
+  totalMinutes Int         @map("total_minutes")
+  taskSummary  String      @map("task_summary") @db.VarChar(255)
+  description  String?     @db.VarChar(1000)
+  status       EntryStatus @default(submitted)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
 
   // Relations
-  userId       String        @map("user_id")
-  user         User          @relation(fields: [userId], references: [id])
-  projectId    String        @map("project_id")
-  project      Project       @relation(fields: [projectId], references: [id])
-  taskTypeId   String        @map("task_type_id")
-  taskType     TaskType      @relation(fields: [taskTypeId], references: [id])
+  userId     String        @map("user_id")
+  user       User          @relation(fields: [userId], references: [id])
+  projectId  String        @map("project_id")
+  project    Project       @relation(fields: [projectId], references: [id])
+  taskTypeId String        @map("task_type_id")
+  taskType   TaskType      @relation(fields: [taskTypeId], references: [id])
   editRequests EditRequest[]
 
   @@map("timesheet_entries")
@@ -159,20 +153,21 @@ model TimesheetEntry {
 
 model EditRequest {
   id              String            @id @default(uuid())
-  originalData    Json              @map("original_data") // JSONB snapshot
-  newData         Json              @map("new_data")      // proposed changes
+  originalData    Json              @map("original_data")
+  newData         Json              @map("new_data")
+  reason          String?
   status          EditRequestStatus @default(pending)
   rejectionReason String?           @map("rejection_reason")
   createdAt       DateTime          @default(now()) @map("created_at")
   reviewedAt      DateTime?         @map("reviewed_at")
 
   // Relations
-  entryId      String         @map("entry_id")
-  entry        TimesheetEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  requestedById String        @map("requested_by_id")
-  requestedBy  User           @relation("RequestedBy", fields: [requestedById], references: [id])
-  reviewedById String?        @map("reviewed_by_id")
-  reviewedBy   User?          @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  entryId       String         @map("entry_id")
+  entry         TimesheetEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  requestedById String         @map("requested_by_id")
+  requestedBy   User           @relation("RequestedBy", fields: [requestedById], references: [id])
+  reviewedById  String?        @map("reviewed_by_id")
+  reviewedBy    User?          @relation("ReviewedBy", fields: [reviewedById], references: [id])
 
   @@map("edit_requests")
 }
@@ -180,10 +175,9 @@ model EditRequest {
 model Notification {
   id        String           @id @default(uuid())
   type      NotificationType
-  title     String
-  body      String
+  message   String
   isRead    Boolean          @default(false) @map("is_read")
-  relatedId String?          @map("related_id") // UUID of related edit_request or entry
+  relatedId String?          @map("related_id")
   createdAt DateTime         @default(now()) @map("created_at")
 
   // Relations

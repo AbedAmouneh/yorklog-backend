@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { createNotification } from './notifications.controller.js';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 export const getMyProjects = async (req, res) => {
   const projects = await prisma.project.findMany({
@@ -76,7 +74,7 @@ export const assignEmployees = async (req, res) => {
     userIds.map(userId =>
       prisma.projectAssignment.upsert({
         where: { projectId_userId: { projectId: project.id, userId } },
-        create: { projectId: project.id, userId, assignedById: req.user.id },
+        create: { projectId: project.id, userId },
         update: {},
       })
     )

@@ -12,24 +12,25 @@ import {
 } from '../controllers/projects.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireAdmin } from '../middleware/role.middleware.js';
+import asyncHandler from '../lib/asyncHandler.js';
 
 const router = Router();
 
 router.use(authenticate);
 
 // Employees: see only their assigned projects
-router.get('/my', getMyProjects);
+router.get('/my', asyncHandler(getMyProjects));
 
 // Admin: full project management
-router.get('/', requireAdmin, getAllProjects);
-router.post('/', requireAdmin, createProject);
-router.patch('/:id', requireAdmin, updateProject);
-router.post('/:id/assign', requireAdmin, assignEmployees);
+router.get('/', requireAdmin, asyncHandler(getAllProjects));
+router.post('/', requireAdmin, asyncHandler(createProject));
+router.patch('/:id', requireAdmin, asyncHandler(updateProject));
+router.post('/:id/assign', requireAdmin, asyncHandler(assignEmployees));
 
 // Tasks (accessible by assigned employees for reading)
-router.get('/:id/tasks', getProjectTasks);
-router.post('/:id/tasks', requireAdmin, createTask);
-router.patch('/:id/tasks/:taskId', requireAdmin, updateTask);
-router.delete('/:id/tasks/:taskId', requireAdmin, deleteTask);
+router.get('/:id/tasks', asyncHandler(getProjectTasks));
+router.post('/:id/tasks', requireAdmin, asyncHandler(createTask));
+router.patch('/:id/tasks/:taskId', requireAdmin, asyncHandler(updateTask));
+router.delete('/:id/tasks/:taskId', requireAdmin, asyncHandler(deleteTask));
 
 export default router;

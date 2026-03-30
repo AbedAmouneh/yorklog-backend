@@ -136,7 +136,7 @@ async function main() {
     const project = await prisma.project.upsert({
       where: { name: projectData.name },
       update: {},
-      create: projectData,
+      create: { ...projectData, createdById: admin.id },
     });
     console.log(`  ✓ Project: ${project.name}`);
 

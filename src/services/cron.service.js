@@ -1,9 +1,7 @@
 import cron from 'node-cron';
-import { PrismaClient } from '@prisma/client';
 import { sendDailyReminder } from './email.service.js';
 import { createNotification } from '../controllers/notifications.controller.js';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 /**
  * Daily reminder job.

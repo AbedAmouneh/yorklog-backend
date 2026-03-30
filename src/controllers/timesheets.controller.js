@@ -1,30 +1,25 @@
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 const entrySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
-  hours: z.number().int().min(0).max(23),
-  minutes: z.number().int().min(0).max(59),
+  totalMinutes: z.coerce.number().int().min(1).max(1440),
   projectId: z.string().uuid(),
   taskTypeId: z.string().uuid(),
-  taskDescription: z.string().max(255).optional(),
-  description: z.string().max(300).optional(),
+  taskSummary: z.string().min(1).max(255),
+  description: z.string().max(1000).optional(),
 });
 
 export const createEntry = async (req, res) => {
   const parsed = entrySchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: parsed.error.flatten() });
+    const messages = Object.values(parsed.error.flatten().fieldErrors).flat().join(', ')
+      || parsed.error.flatten().formErrors.join(', ')
+      || 'Invalid input.';
+    return res.status(400).json({ error: messages });
   }
 
-  const { date, hours, minutes, projectId, taskTypeId, taskDescription, description } = parsed.data;
-  const totalMinutes = hours * 60 + minutes;
-
-  if (totalMinutes === 0) {
-    return res.status(400).json({ error: 'Total time must be greater than 0.' });
-  }
+  const { date, totalMinutes, projectId, taskTypeId, taskSummary, description } = parsed.data;
 
   // Verify user is assigned to this project
   const assignment = await prisma.projectAssignment.findUnique({
@@ -46,18 +41,18 @@ export const createEntry = async (req, res) => {
   if (req.user.departmentId) {
     const dept = await prisma.department.findUnique({
       where: { id: req.user.departmentId },
-      select: { maxHoursPerDay: true },
+      select: { maxDailyHours: true },
     });
     if (dept) {
-      const maxMinutes = Number(dept.maxHoursPerDay) * 60;
+      const maxMinutes = dept.maxDailyHours * 60;
       const existingToday = await prisma.timesheetEntry.aggregate({
-        where: { userId: req.user.id, date: new Date(date), status: 'active' },
+        where: { userId: req.user.id, date: new Date(date) },
         _sum: { totalMinutes: true },
       });
       const alreadyLogged = existingToday._sum.totalMinutes || 0;
       if (alreadyLogged + totalMinutes > maxMinutes) {
         return res.status(400).json({
-          error: `Exceeds daily max of ${dept.maxHoursPerDay}h for your department.`,
+          error: `Exceeds daily max of ${dept.maxDailyHours}h for your department.`,
         });
       }
     }
@@ -67,7 +62,7 @@ export const createEntry = async (req, res) => {
     data: {
       date: new Date(date),
       totalMinutes,
-      taskDescription,
+      taskSummary,
       description,
       userId: req.user.id,
       projectId,
@@ -84,7 +79,7 @@ export const createEntry = async (req, res) => {
 
 export const getMyEntries = async (req, res) => {
   const { month, year, projectId, page = 1, limit = 20 } = req.query;
-  const where = { userId: req.user.id, status: 'active' };
+  const where = { userId: req.user.id };
 
   if (month && year) {
     const start = new Date(year, month - 1, 1);
@@ -116,7 +111,7 @@ export const getMyCalendar = async (req, res) => {
   const end = new Date(year, month, 0);
 
   const entries = await prisma.timesheetEntry.findMany({
-    where: { userId: req.user.id, date: { gte: start, lte: end }, status: 'active' },
+    where: { userId: req.user.id, date: { gte: start, lte: end } },
     select: { date: true, totalMinutes: true },
     orderBy: { date: 'asc' },
   });

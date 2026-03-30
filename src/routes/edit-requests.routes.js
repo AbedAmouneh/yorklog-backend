@@ -8,20 +8,16 @@ import {
 } from '../controllers/edit-requests.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/role.middleware.js';
+import asyncHandler from '../lib/asyncHandler.js';
 
 const router = Router();
 
 router.use(authenticate);
 
-// Employee: submit edit request for their own entry
-router.post('/timesheets/:entryId', submitEditRequest);
-
-// Employee: see their own edit request history
-router.get('/my', getMyEditRequests);
-
-// Manager+: see pending requests for their team
-router.get('/', requireRole('dept_manager'), getTeamEditRequests);
-router.patch('/:id/approve', requireRole('dept_manager'), approveEditRequest);
-router.patch('/:id/reject', requireRole('dept_manager'), rejectEditRequest);
+router.post('/timesheets/:entryId', asyncHandler(submitEditRequest));
+router.get('/my', asyncHandler(getMyEditRequests));
+router.get('/', requireRole('dept_manager'), asyncHandler(getTeamEditRequests));
+router.patch('/:id/approve', requireRole('dept_manager'), asyncHandler(approveEditRequest));
+router.patch('/:id/reject', requireRole('dept_manager'), asyncHandler(rejectEditRequest));
 
 export default router;

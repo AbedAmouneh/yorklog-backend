@@ -1,9 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 const loginSchema = z.object({
   email: z.string().email(),
