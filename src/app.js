@@ -15,6 +15,7 @@ import departmentRoutes from './routes/departments.routes.js';
 import reportRoutes from './routes/reports.routes.js';
 import notificationRoutes from './routes/notifications.routes.js';
 import teamRoutes from './routes/teams.routes.js';
+import taskRoutes from './routes/tasks.routes.js';
 
 import { startCronJobs } from './services/cron.service.js';
 
@@ -54,6 +55,7 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -80,5 +82,8 @@ app.listen(PORT, () => {
 
 export default app;
 
+
+
+// restart
 
 
