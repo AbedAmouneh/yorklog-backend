@@ -13,6 +13,7 @@ enum Role {
   employee
   dept_manager
   hr_finance
+  org_admin
   super_admin
 }
 
@@ -48,11 +49,13 @@ model Department {
   id             String   @id @default(uuid())
   name           String   @unique
   maxDailyHours  Int      @default(8) @map("max_daily_hours")
+  headUserId     String?  @map("head_user_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relations
-  users User[]
+  headUser User?  @relation("DepartmentHead", fields: [headUserId], references: [id])
+  users    User[]
 
   @@map("departments")
 }
@@ -71,6 +74,7 @@ model User {
   // Relations
   departmentId         String?             @map("department_id")
   department           Department?         @relation(fields: [departmentId], references: [id])
+  ledDepartments       Department[]        @relation("DepartmentHead")
   timesheetEntries     TimesheetEntry[]
   projectAssignments   ProjectAssignment[]
   editRequestsMade     EditRequest[]       @relation("RequestedBy")

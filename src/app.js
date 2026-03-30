@@ -14,6 +14,7 @@ import userRoutes from './routes/users.routes.js';
 import departmentRoutes from './routes/departments.routes.js';
 import reportRoutes from './routes/reports.routes.js';
 import notificationRoutes from './routes/notifications.routes.js';
+import teamRoutes from './routes/teams.routes.js';
 
 import { startCronJobs } from './services/cron.service.js';
 
@@ -52,6 +53,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/teams', teamRoutes);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {
